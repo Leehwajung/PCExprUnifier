@@ -155,5 +155,5 @@ bool read_token(char *str_dst, const char *str_exp)
 nodeptr malloc_node()
 {
 	nodeptr exp = (nodeptr) malloc(sizeof(node));   // malloc a node (새 노드를 할당한다)
-	return memset(exp, NULL, sizeof(node));         // curr->down = NULL;의 동작을 포함함.
+	return (nodeptr) memset(exp, 0, sizeof(node));  // curr->down = NULL;의 동작을 포함함.
 }

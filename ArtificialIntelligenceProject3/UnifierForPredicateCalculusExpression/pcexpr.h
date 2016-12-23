@@ -3,7 +3,13 @@
 
 #include <stdbool.h>    // for bool type, true and false (C99)
 
+
+/*** 매크로 정의 ***/
+
 #define NODE_STR_SIZE   (50)
+
+
+/*** 데이터 구조 ***/
 
 /* Type definition for a pointer for a node */
 typedef struct node *nodeptr;
@@ -26,6 +32,8 @@ typedef struct substi_node {
 } substi_node;
 
 
+/*** 함수 선언 ***/
+
 /* Unification을 구현하는 함수
  * 3 개의 입력 인수를 가짐.
  * 처음 2 개: 단일화할 두 PC 문장. (연결 리스트에 대한 포인터로 공급됨.)
@@ -45,5 +53,6 @@ nodeptr get_structure_of_expression(const char *exp_str);
  * nodeTerm: Head 구조 내에서 VarString 이름의 모든 변수를 nodeTerm으로 변경하여 주어야 한다.
  */
 int apply_substitution_element(nodeptr head, char varString[], nodeptr nodeTerm);
+
 
 #endif  /* !__PCEXPR_H */
