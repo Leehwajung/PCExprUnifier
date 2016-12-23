@@ -147,6 +147,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
+    <ClCompile Include="pcexpr.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pcexpr.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="expressions.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

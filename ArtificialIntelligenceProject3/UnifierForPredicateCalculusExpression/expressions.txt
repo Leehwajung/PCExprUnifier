@@ -1,0 +1,8 @@
+(Arel x (bfun (caption Ateam) u) (mofu x) z)
+(Arel Bob (bfun y Chen) (mofu v) y)
+%
+(Lookat x (goalkeeper (firstteam Korea)) (3fl GS))
+(y Crowds (z (firstteam w)) v)
+%
+(Request (x (transocean KE)) (y Acompany) lunch2)
+(Request (x (transocean KE)) (softsoda x) lunch)
