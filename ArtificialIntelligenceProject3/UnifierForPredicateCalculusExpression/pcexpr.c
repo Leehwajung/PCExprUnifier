@@ -60,7 +60,7 @@ substi_nodeptr malloc_substi_node();
  */
 bool has_node(nodeptr expr, const char varString[]);
 
-/* expr이 List일 때 치환할 스트링을 가져오는 함수
+/* expr이 List일 때 치환할 스트링을 가져오는 함수 (로컬)
  */
 void node_strcpy(char *strDestination, size_t numberOfElements, nodeptr expr);
 
