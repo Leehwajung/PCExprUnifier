@@ -28,11 +28,11 @@ typedef enum expr_kind {
 /*** 함수 선언 (로컬) ***/
 
 /* 토큰을 획득하는 함수 (로컬)
- * 주어진 문자열의 expression을 분해하여 token을 생성한다.
+ * 주어진 스트링의 expression을 분해하여 token을 생성한다.
  * 예: expression = "(Bigger(father(teacher  Bill)) Joe1)"
  *     출력된 token 열: (, Bigger, (, father, (, teacher, Bill, ), ), Joe1, )
  * str_dst: 현재 획득한 토큰을 저장할 공간.
- * str_exp: 토크나이징할 PC Expression 문자열, 두 번째 호출부터 NULL을 인수로 전달하면 이전 문자열을 계속해서 토크나이징함.
+ * str_exp: 토크나이징할 PC Expression 스트링, 두 번째 호출부터 NULL을 인수로 전달하면 이전 스트링을 계속해서 토크나이징함.
  * 함수 반환값: 성공하면 true, 실패하면 false.
  */
 bool read_token(char *str_dst, const char *str_exp);
@@ -60,7 +60,7 @@ substi_nodeptr malloc_substi_node();
  */
 bool has_node(nodeptr expr, const char varString[]);
 
-/* expr의 원소의 수
+/* expr의 원소의 수 (로컬)
  */
 int num_nodes_of_expr(nodeptr expr);
 
@@ -307,6 +307,44 @@ bool unify(nodeptr exp1, nodeptr exp2, substi_nodeptr *substi)
 	return unify_sub(exp1, exp1, exp2, exp2, substi);
 }   // end of unify()
 
+bool apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm)
+{
+	// head: 메인함수에서 준비된 expression 구조의 첫 노드에 대한 포인터.
+	// varString: 변수 노드의 스트링. 이 노드는 head 구조의 한 노드이다.
+	// nodeTerm: head 구조 내에서 nodeVar의 변수를 모두 nodeTerm 으로 변경하여 주어야 한다.
+	//
+	// Return value: it returns true (1) if successful; Otherwise false (0) is returned. (질문: false(0)가 반환되는 경우가 있는가?)
+
+	bool res = false;
+	do {
+		if (get_kind_of_expr(head) == VAR_ATOM) {   // head->str is a variable
+			if (strcmp(head->str, varString) == 0) {    // 치환이 필요한 노드를 발견함 (head->str == VarString)
+				if (get_kind_of_expr(nodeTerm) & 0x02) {    // nodeTerm->str is an atom
+					strcpy_s(head->str, NODE_STR_SIZE, nodeTerm->str);  // 변수를 atom 으로 변경함 ( head->str = nodeTerm->str)
+				}
+				else if (nodeTerm->str[0] == '(') { // (nodeTerm->str = "(")
+					head->str[0] = '\0';            // (head->str = "\0")
+					head->down = nodeTerm;          // 변수를 리스트로 변경함
+				}
+				else;
+			}
+		}
+		
+		else if (head->str[0] == '\0') {    // head->str == "\0"
+			res = apply_substitution_element(head->down, varString, nodeTerm);
+			if (res == false) {
+				return false;   // 0
+			}
+		}
+		
+		head = head->right; // 우측 노드로 이동한다.
+		if (head->str[0] == ')') {  // 이 리스트의 원소를 모두 처리하였음. (head->str = ")")
+			break;
+		}
+	} while (true);
+	
+	return true;    // 1
+}   // end of apply_substitution_element()
 
 bool read_token(char *str_dst, const char *str_exp)
 {
@@ -315,7 +353,7 @@ bool read_token(char *str_dst, const char *str_exp)
 	bool isFound = false;
 
 	if (currAddr == NULL) {
-		currAddr = (char*) str_exp; // 문자열의 시작 주소
+		currAddr = (char*) str_exp; // 스트링의 시작 주소
 	}
 
 	while (*currAddr != '\0') {
@@ -325,8 +363,8 @@ bool read_token(char *str_dst, const char *str_exp)
 		case ' ':
 		case '\t':
 			currAddr++;         // 다음 문자로 이동
-			if (isFound) {      // 문자열 토큰이면 문자열을 완성하고 종료
-				str_dst[strIndex] = '\0';   // 문자열 완성
+			if (isFound) {      // 스트링 토큰이면 스트링을 완성하고 종료
+				str_dst[strIndex] = '\0';   // 스트링 완성
 				return true;    // 토큰 획득 성공
 			}
 			else {  // 공백 문자는 건너 뜀
@@ -340,10 +378,10 @@ bool read_token(char *str_dst, const char *str_exp)
 				str_dst[strIndex++] = *currAddr;
 				currAddr++; // 다음 문자로 이동 (isFound == true일 때는 다음 토큰이 가져갈 문자이므로, isFound == false일 때만 이동)
 			}
-			str_dst[strIndex] = '\0';   // 문자열 완성
+			str_dst[strIndex] = '\0';   // 스트링 완성
 			return true;    // 토큰 획득 성공
 
-			// 문자열 토큰의 문자 모으기
+			// 스트링 토큰의 문자 모으기
 		default:
 			isFound = true; // 토큰 확인
 			if (strIndex < NODE_STR_SIZE - 1) { // NODE_STR_SIZE 크기까지만 저장

@@ -43,16 +43,17 @@ typedef struct substi_node {
  */
 bool unify(nodeptr exp1, nodeptr exp2, substi_nodeptr *substi);
 
-/* 스트링을 분석하여 연결리스트 구조를 만드는 함수
+/* 스트링을 분석하여 연결 리스트 구조를 만드는 함수
  */
 nodeptr get_structure_of_expression(const char *exp_str);
 
-/* Head의 구조 중 VarString 이름의 노드마다 nodeTerm 노드의 내용으로 변경하는 함수
- * Head: 메인함수에서 준비된 expression 구조의 첫 노드에  대한 포인터.
- * VarString: 변수 이름의 스트링.
- * nodeTerm: Head 구조 내에서 VarString 이름의 모든 변수를 nodeTerm으로 변경하여 주어야 한다.
+/* 연결 리스트 구조에서 특정 이름의 노드들의 이름을 특정 노드의 내용으로 변경하는 함수
+ * head: 메인함수에서 준비된 expression 구조의 첫 노드에 대한 포인터.
+ * varString: 변수 이름의 스트링.
+ * nodeTerm: head 구조 내에서 varString 이름의 모든 변수를 nodeTerm으로 변경하여 주어야 한다.
+ * 함수 반환값: 성공이면 true (1), 아니면 false (0).
  */
-int apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm);
+bool apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm);
 
 
 #endif  /* !__PCEXPR_H */
