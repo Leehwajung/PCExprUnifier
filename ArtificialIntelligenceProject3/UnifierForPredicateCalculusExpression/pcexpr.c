@@ -93,7 +93,7 @@ nodeptr get_structure_of_expression(const char *exp_str)
 	// (2)
 	do {
 		hasToken = read_token(tok, NULL);   // read the next token into tok
-		if (hasToken) {     // no more tokens left
+		if (!hasToken) {    // no more tokens left
 			return NULL;    // Some token is required to come. But no more. So error has occurred.
 		}
 		
@@ -246,9 +246,12 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 			}
 			break;
 			
-		// exp2 가 리스트이면 (exp1, exp2 모두 list이다.)
+		// exp2가 리스트이면 (exp1, exp2 모두 list이다.)
 		case LIST:
-			if (num_nodes_of_expr(exp1) != num_nodes_of_expr (exp2)) {  // exp1과 exp2의 원소의 수가 다르다면
+		//{int aa = num_nodes_of_expr(exp1);
+		//int bb = num_nodes_of_expr(exp2);
+		//int cc = 1; }
+			if (num_nodes_of_expr(exp1) != num_nodes_of_expr(exp2)) {   // exp1과 exp2의 원소의 수가 다르다면
 				return false;   // 0
 			}
 			
@@ -277,7 +280,9 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 					return false;   // 0
 				}
 				
-				*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+				if (temp_substi != NULL) {
+					*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+				}
 				
 				p1 = p1->right;
 				p2 = p2->right;
@@ -362,6 +367,7 @@ bool read_token(char *str_dst, const char *str_exp)
 			// 공백 문자
 		case ' ':
 		case '\t':
+		case '\n':
 			currAddr++;         // 다음 문자로 이동
 			if (isFound) {      // 스트링 토큰이면 스트링을 완성하고 종료
 				str_dst[strIndex] = '\0';   // 스트링 완성
@@ -391,7 +397,8 @@ bool read_token(char *str_dst, const char *str_exp)
 			break;
 		}
 	}
-	
+
+	currAddr = NULL;
 	return false;   // 토큰 획득 실패
 }
 
@@ -458,11 +465,11 @@ int num_nodes_of_expr_sub(nodeptr expr, int num)
 {
 	num++;
 	if (expr->right != NULL) {
-		num += num_nodes_of_expr_sub(expr->right, num);
+		num = num_nodes_of_expr_sub(expr->right, num);
 	}
-	if (expr->down != NULL) {
-		num += num_nodes_of_expr_sub(expr->down, num);
-	}
+	//if (expr->down != NULL) {
+	//	num = num_nodes_of_expr_sub(expr->down, num);
+	//}
 	return num;
 }
 
