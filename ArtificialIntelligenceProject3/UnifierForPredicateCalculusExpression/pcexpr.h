@@ -12,7 +12,7 @@
 /*** 데이터 구조 ***/
 
 /* Type definition for a pointer for a node */
-typedef struct node *nodeptr;
+typedef struct anode *nodeptr;
 
 /* Type definition for a node for linked list representiong an expression */
 typedef struct anode {
@@ -52,7 +52,7 @@ nodeptr get_structure_of_expression(const char *exp_str);
  * VarString: 변수 이름의 스트링.
  * nodeTerm: Head 구조 내에서 VarString 이름의 모든 변수를 nodeTerm으로 변경하여 주어야 한다.
  */
-int apply_substitution_element(nodeptr head, char varString[], nodeptr nodeTerm);
+int apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm);
 
 
 #endif  /* !__PCEXPR_H */

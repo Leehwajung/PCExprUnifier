@@ -14,6 +14,17 @@
 #define STACK_INIT_INDEX    (-1)
 
 
+/*** 열거형 정의 ***/
+
+/* PC Expression의 종류 */
+typedef enum expr_kind {
+	//NONE        = 0x00, // 타입을 알 수 없음.
+	LIT_ATOM    = 0x02, // 상수 atom: 노드가 좌측 괄호를 갖지 않음. 그리고 변수가 아닌 형태의 스트링을 가짐.
+	VAR_ATOM    = 0x03, // 변수 atom: 노드가 좌측 괄호를 갖지 않음. 그리고 저장된 스트링이 u~z 사이의 글자 한 개.
+	LIST        = 0x04  // list: 노드가 스트링 "("를 가지는 경우임.
+} expr_kind;
+
+
 /*** 함수 선언 (로컬) ***/
 
 /* 토큰을 획득하는 함수 (로컬)
@@ -22,13 +33,36 @@
  *     출력된 token 열: (, Bigger, (, father, (, teacher, Bill, ), ), Joe1, )
  * str_dst: 현재 획득한 토큰을 저장할 공간.
  * str_exp: 토크나이징할 PC Expression 문자열, 두 번째 호출부터 NULL을 인수로 전달하면 이전 문자열을 계속해서 토크나이징함.
+ * 함수 반환값: 성공하면 true, 실패하면 false.
  */
 bool read_token(char *str_dst, const char *str_exp);
 
 /* 새 노드를 할당하는 함수 (로컬)
- * 새 노드를 할당하고 값을 0으로 초기화한다.
+ * 새 노드를 할당하고 전체 값을 0으로 초기화한다.
  */
 nodeptr malloc_node();
+
+/* expr이 어떤 종류인지 판단하는 함수 (로컬)
+ */
+expr_kind get_kind_of_expr(nodeptr expr);
+
+/* 두 exprs를 비교하는 함수 (로컬)
+ */
+bool compare_nodes(nodeptr exp1, nodeptr exp2);
+
+/* 새 치환 노드를 할당하는 함수 (로컬)
+ * 새 치환 노드를 할당하고 전체 값을 0으로 초기화한다.
+ */
+substi_nodeptr malloc_substi_node();
+
+/* expr 내에 varString 변수를 가지는 노드를 찾는 함수 (로컬)
+ * 함수 반환값: 찾으면 true, 없으면 false
+ */
+bool has_node(nodeptr expr, const char varString[]);
+
+/* expr의 원소의 수
+ */
+int num_nodes_of_expr(nodeptr expr);
 
 
 /*** 함수 정의 ***/
@@ -40,8 +74,8 @@ nodeptr get_structure_of_expression(const char *exp_str)
 	nodeptr stack[STACK_SIZE];
 	int top = STACK_INIT_INDEX; // 스택 초기화. We use a stack to handle lists embedding sub-lists.
 	nodeptr exp = NULL;
-	node *curr = NULL;
-	node *tp, *tp2;
+	nodeptr curr = NULL;
+	nodeptr tp, tp2;
 	char tok[NODE_STR_SIZE];
 	
 	bool hasToken = read_token(tok, exp_str);   // read token into tok
@@ -101,16 +135,187 @@ nodeptr get_structure_of_expression(const char *exp_str)
 	else {
 		return  NULL;
 	}   // Some to kens are remaining after the final right ).
-}
+}   // end of get_structure_of_expression()
+
+bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_nodeptr *substi)
+{
+	substi_nodeptr stp = NULL;
+	nodeptr p1 = NULL, p2 = NULL, temp1 = NULL, temp2 = NULL;
+	substi_nodeptr temp_substi = NULL;
+	bool res = false;
+
+	/* (0) */
+	*substi = NULL; // 일단 아무 치환도 필요치 않은 것으로 초기화.
+
+	/* (1) exp1 과 exp2 각각이 어떤 종류인지를 판단한다. */
+	const expr_kind exp1Kind = get_kind_of_expr(exp1);
+	const expr_kind exp2Kind = get_kind_of_expr(exp2);
+
+	/* (2)  exp1의 종류에 따라 다음 중 한가지를 처리한다: */
+	switch (exp1Kind)
+	{
+	// 2-1) exp1 = 상수 atom 인 경우:
+	case LIT_ATOM:
+		switch (exp2Kind)
+		{
+		// exp2가 exp1과 동일한 상수이면
+		case LIT_ATOM:
+			if (compare_nodes(exp1, exp2)) {
+				return true;    // 1
+			}
+			else {
+				return false;   // 0
+			}
+			
+		// (exp2 = 변수)인 경우:
+		case VAR_ATOM:
+			stp = malloc_substi_node(); // malloc a substi_node
+			stp->replace_term = exp1;
+			stp->var = exp2;
+			stp->next = NULL;
+			*substi = stp;  // 치환 요소 한 개를 붙인다.
+			apply_substitution_element(head2, exp2->str, exp1); // head2의 구조 중 exp2 변수 노드마다 exp1 노드의 내용으로 변경한다.
+			return true;    // 치환 요소는 한 개만을 넘긴다.
+			
+		// (exp2 = list)인 경우:
+		case LIST:
+			return false;   // 0
+		}
+		break;
+
+	// 2-2) exp1 = 변수인 경우:
+	case VAR_ATOM:
+		switch (exp2Kind)
+		{
+		// exp2가 변수 atom인 경우:
+		case VAR_ATOM:  // (의도적으로 break문을 없앰)
+			// exp2가 exp1과 동일한 변수
+			if (compare_nodes(exp1, exp2)) {
+				return true;    // 1
+			}
+			
+		// exp2가 변수 또는 상수 atom인 경우:
+		case LIT_ATOM:
+			stp = malloc_substi_node(); // malloc a substi_node
+			stp->replace_term = exp2;
+			stp->var = exp1;
+			stp->next = NULL;
+			*substi = stp;  // 치환 요소 한 개를 가진 리스트를 넘긴다.
+			apply_substitution_element(head1, exp1->str, exp2);
+			return true;    // 1
+			
+		// exp2가 list이면
+		case LIST:
+			if (has_node(exp2, exp1->str) != false) {   // 만약 exp2 내에 exp1의 변수를 가지는 노드가 존재하면
+				return true;    // 1
+			}
+			else {
+				stp = malloc_substi_node();
+				stp->replace_term = exp2;
+				stp->var = exp1;
+				stp->next = NULL;
+				*substi = stp;  // *substi에 (exp2 / exp1) 치환 요소를 매단다.
+				apply_substitution_element(head1, exp1->str, exp2);
+				return true;    // 치환 요소는 한 개만을 넘긴다.
+			}
+		}
+		break;
+
+	// 2-3)  exp1 = list 인 경우:
+	// (주: 이 판단은 exp1->str이 "("임을 확인하여 가능하다.)
+	case LIST:
+		switch (exp2Kind)
+		{
+		// exp2가 상수 atom이면
+		case LIT_ATOM:
+			return false;   // 0
+			
+		// exp2가 변수이면
+		case VAR_ATOM:
+			if (has_node(exp1, exp2->str)) {    // exp1 내에 exp2와 동일한 변수를 가지는 노드가 존재하면
+				return true;    // 1
+			}
+			else {
+				stp = malloc_substi_node();
+				stp->replace_term = exp1;
+				stp->var = exp2;
+				stp->next = NULL;
+				*substi = stp;  // *substi에 (exp1 / exp2) 치환 요소를 매단다.
+				apply_substitution_element(head2, exp2->str, exp1); // head2의 구조 내에 exp2의 변수를 가지는 노드를 모두 exp1을 가지는 노드로 변경한다.
+				return true;    // 치환 요소는 한 개만을 넘긴다.
+			}
+			break;
+			
+		// exp2 가 리스트이면 (exp1, exp2 모두 list이다.)
+		case LIST:
+			if (num_nodes_of_expr(exp1) != num_nodes_of_expr (exp2)) {  // exp1과 exp2의 원소의 수가 다르다면
+				return false;   // 0
+			}
+			
+			// exp1, exp2 모두 '('를 가진 노드를 가리키고 있다.
+			p1 = exp1->right;
+			p2 = exp2->right;  // 각자 다음 노드로 이동.
+			
+			do {
+				if (p1->str[0] == '\0') {   //p1이 '\0'를 가진 노드를 가리키면
+					p1 = p1->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
+				}
+				else {
+					temp1 = p1;
+				}
+				
+				if (p2->str[0] == '\0') {   //p2이 '\0'를 가진 노드를 가리키면
+					p2 = p2->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
+				}
+				else {
+					temp2 = p2;
+				}
+				
+				temp_substi = NULL;
+				res = unify(temp1, temp2, &temp_substi);    // recursive call
+				if (res == false) { // 0
+					return false;   // 0
+				}
+				
+				*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+				
+				p1 = p1->right;
+				p2 = p2->right;
+				res = has_node(p2, ")");
+				if (has_node(p1, ")")) {    // p1 과 p2 가 가리키는 노드 중 하나라도 ')'를 가진다면
+					if (res) {  // p1, p2 둘다 ')'를 가진다면
+						break;  // exit this loop;
+					}
+					else {
+						return false;   // 0
+					}
+				}
+				else if (res) {
+					return false;   // 0
+				}
+			} while (true);
+			
+			return true;    // 파라미터 *substi을 통하여 치환이 호출 측으로 전달된다.
+		}
+		break;
+	}
+	return false;
+}   // end of unify_sub()
+
+bool unify(nodeptr exp1, nodeptr exp2, substi_nodeptr *substi)
+{
+	return unify_sub(exp1, exp1, exp2, exp2, substi);
+}   // end of unify()
+
 
 bool read_token(char *str_dst, const char *str_exp)
 {
 	static char *currAddr = NULL;
-	bool isFound = false;
 	int strIndex = 0;
+	bool isFound = false;
 
 	if (currAddr == NULL) {
-		currAddr = str_exp; // 문자열의 시작 주소
+		currAddr = (char*) str_exp; // 문자열의 시작 주소
 	}
 
 	while (*currAddr != '\0') {
@@ -156,4 +361,74 @@ nodeptr malloc_node()
 {
 	nodeptr exp = (nodeptr) malloc(sizeof(node));   // malloc a node (새 노드를 할당한다)
 	return (nodeptr) memset(exp, 0, sizeof(node));  // curr->down = NULL;의 동작을 포함함.
+}
+
+expr_kind get_kind_of_expr(nodeptr expr)
+{
+	// expr이 어떤 종류인지를 판단한다.
+	char firChar = expr->str[0];
+
+	// 가능성은 다음과 같다:
+	// list: expr 포인터가 가리키는 노드가 스트링 "("를 가지는 경우임.
+	if (firChar == '(') {
+		return LIST;
+	}
+
+	// 변수 atom: expr 포인터가 가리키는 노드가 좌측 괄호를 갖지 않음. 그리고 저장된 스트링이 u~z 사이의 글자 한 개.
+	else if (strlen(expr->str) == 1 && (firChar >= 'u' && firChar <= 'z')) {
+		return VAR_ATOM;
+	}
+
+	// 상수 atom: expr 포인터가 가리키는 노드가 좌측 괄호를 갖지 않음. 그리고 변수가 아닌 형태의 스트링을 가짐.
+	else {
+		return LIT_ATOM;
+	}
+}
+
+bool compare_nodes(nodeptr exp1, nodeptr exp2)
+{
+	return strcmp(exp1->str, exp2->str) == 0 ? true : false;
+}
+
+substi_nodeptr malloc_substi_node()
+{
+	substi_nodeptr exp = (substi_nodeptr) malloc(sizeof(substi_node));  // malloc a substi_node 
+	return (substi_nodeptr) memset(exp, 0, sizeof(substi_node));
+}
+
+bool has_node(nodeptr expr, const char varString[])
+{
+	if (strcmp(expr->str, varString) == 0) {
+		return true;
+	}
+	else {
+		if (expr->right != NULL) {
+			if (has_node(expr->right, varString)) {
+				return true;
+			}
+		}
+		if (expr->down != NULL) {
+			if (has_node(expr->down, varString)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+int num_nodes_of_expr_sub(nodeptr expr, int num)
+{
+	num++;
+	if (expr->right != NULL) {
+		num += num_nodes_of_expr_sub(expr->right, num);
+	}
+	if (expr->down != NULL) {
+		num += num_nodes_of_expr_sub(expr->down, num);
+	}
+	return num;
+}
+
+int num_nodes_of_expr(nodeptr expr)
+{
+	return num_nodes_of_expr_sub(expr, 0);
 }

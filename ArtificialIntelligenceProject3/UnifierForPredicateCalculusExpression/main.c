@@ -34,6 +34,7 @@ int main(void)
 	}
 	else {
 		fprintf_s(stderr, "unification failed\n");
+		return 1;
 	}
 
 	return 0;
