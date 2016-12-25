@@ -26,8 +26,8 @@ typedef struct substi_node *substi_nodeptr;
 
 /* 치환의 저장을 위한 데이터 구조 */
 typedef struct substi_node {
-	nodeptr replace_term;
-	nodeptr var;
+	char replace_term[NODE_STR_SIZE];
+	char var[NODE_STR_SIZE];
 	substi_nodeptr next;
 } substi_node;
 

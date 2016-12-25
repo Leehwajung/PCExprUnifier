@@ -60,6 +60,10 @@ substi_nodeptr malloc_substi_node();
  */
 bool has_node(nodeptr expr, const char varString[]);
 
+/* expr이 List일 때 치환할 스트링을 가져오는 함수
+ */
+void node_strcpy(char *strDestination, size_t numberOfElements, nodeptr expr);
+
 /* expr의 원소의 수 (로컬)
  */
 int num_nodes_of_expr(nodeptr expr);
@@ -170,8 +174,8 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 		// (exp2 = 변수)인 경우:
 		case VAR_ATOM:
 			stp = malloc_substi_node(); // malloc a substi_node
-			stp->replace_term = exp1;
-			stp->var = exp2;
+			strcpy_s(stp->replace_term, NODE_STR_SIZE, exp1->str);
+			strcpy_s(stp->var, NODE_STR_SIZE, exp2->str);
 			stp->next = NULL;
 			*substi = stp;  // 치환 요소 한 개를 붙인다.
 			apply_substitution_element(head2, exp2->str, exp1); // head2의 구조 중 exp2 변수 노드마다 exp1 노드의 내용으로 변경한다.
@@ -197,8 +201,8 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 		// exp2가 변수 또는 상수 atom인 경우:
 		case LIT_ATOM:
 			stp = malloc_substi_node(); // malloc a substi_node
-			stp->replace_term = exp2;
-			stp->var = exp1;
+			strcpy_s(stp->replace_term, NODE_STR_SIZE, exp2->str);
+			strcpy_s(stp->var, NODE_STR_SIZE, exp1->str);
 			stp->next = NULL;
 			*substi = stp;  // 치환 요소 한 개를 가진 리스트를 넘긴다.
 			apply_substitution_element(head1, exp1->str, exp2);
@@ -211,8 +215,8 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 			}
 			else {
 				stp = malloc_substi_node();
-				stp->replace_term = exp2;
-				stp->var = exp1;
+				node_strcpy(stp->replace_term, NODE_STR_SIZE, exp2);
+				strcpy_s(stp->var, NODE_STR_SIZE, exp1->str);
 				stp->next = NULL;
 				*substi = stp;  // *substi에 (exp2 / exp1) 치환 요소를 매단다.
 				apply_substitution_element(head1, exp1->str, exp2);
@@ -237,8 +241,8 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 			}
 			else {
 				stp = malloc_substi_node();
-				stp->replace_term = exp1;
-				stp->var = exp2;
+				node_strcpy(stp->replace_term, NODE_STR_SIZE, exp1);
+				strcpy_s(stp->var, NODE_STR_SIZE, exp2->str);
 				stp->next = NULL;
 				*substi = stp;  // *substi에 (exp1 / exp2) 치환 요소를 매단다.
 				apply_substitution_element(head2, exp2->str, exp1); // head2의 구조 내에 exp2의 변수를 가지는 노드를 모두 exp1을 가지는 노드로 변경한다.
@@ -254,40 +258,50 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 			if (num_nodes_of_expr(exp1) != num_nodes_of_expr(exp2)) {   // exp1과 exp2의 원소의 수가 다르다면
 				return false;   // 0
 			}
-			
+			substi_nodeptr curr = NULL;
 			// exp1, exp2 모두 '('를 가진 노드를 가리키고 있다.
 			p1 = exp1->right;
 			p2 = exp2->right;  // 각자 다음 노드로 이동.
 			
 			do {
 				if (p1->str[0] == '\0') {   //p1이 '\0'를 가진 노드를 가리키면
-					p1 = p1->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
+					temp1 = p1->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
 				}
 				else {
 					temp1 = p1;
 				}
 				
 				if (p2->str[0] == '\0') {   //p2이 '\0'를 가진 노드를 가리키면
-					p2 = p2->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
+					temp2 = p2->down;  // 리스트 노드이다. "(" 노드를 가리키게 한다.
 				}
 				else {
 					temp2 = p2;
 				}
 				
 				temp_substi = NULL;
-				res = unify(temp1, temp2, &temp_substi);    // recursive call
+				res = unify_sub(head1, temp1, head2, temp2, &temp_substi);    // recursive call
 				if (res == false) { // 0
 					return false;   // 0
 				}
 				
+
+				//*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+				//////////////////////////
 				if (temp_substi != NULL) {
-					*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+					if (*substi == NULL) {
+						*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+					}
+					else {
+						curr->next = temp_substi;
+					}
+					curr = temp_substi;
 				}
+				///////////////////////////
 				
 				p1 = p1->right;
 				p2 = p2->right;
-				res = has_node(p2, ")");
-				if (has_node(p1, ")")) {    // p1 과 p2 가 가리키는 노드 중 하나라도 ')'를 가진다면
+				res = (p2->str[0] == ')');
+				if (p1->str[0] == ')') {    // p1 과 p2 가 가리키는 노드 중 하나라도 ')'를 가진다면
 					if (res) {  // p1, p2 둘다 ')'를 가진다면
 						break;  // exit this loop;
 					}
@@ -459,6 +473,29 @@ bool has_node(nodeptr expr, const char varString[])
 		}
 	}
 	return false;
+}
+
+void node_strcpy(char *strDestination, size_t numberOfElements, nodeptr expr)
+{
+	int bracketNum = 0;
+
+	strcpy_s(strDestination, numberOfElements, expr);
+	do {
+		if (expr->str[0] == '(') {
+			bracketNum++;
+		}
+		else if (expr->str[0] == ')') {
+			bracketNum--;
+		}
+		expr = expr->right;
+		if (bracketNum > 0 && expr != NULL) {
+			strcat_s(strDestination, numberOfElements, " ");
+			strcat_s(strDestination, numberOfElements, expr->str);
+		}
+		else {
+			break;
+		}
+	} while (true);
 }
 
 int num_nodes_of_expr_sub(nodeptr expr, int num)

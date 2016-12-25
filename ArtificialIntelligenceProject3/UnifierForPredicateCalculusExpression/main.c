@@ -79,7 +79,7 @@ void print_out(substi_nodeptr substi)
 	substi_nodeptr curr = substi;
 	if (curr != NULL) {
 		while (true) {
-			printf_s("%s / %s", curr->replace_term->str, curr->var->str);
+			printf_s("%s / %s", curr->replace_term, curr->var);
 			curr = curr->next;
 			if (curr != NULL) {
 				printf_s(", ");
