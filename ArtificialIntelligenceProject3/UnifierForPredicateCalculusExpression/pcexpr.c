@@ -252,9 +252,6 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 			
 		// exp2가 리스트이면 (exp1, exp2 모두 list이다.)
 		case LIST:
-		//{int aa = num_nodes_of_expr(exp1);
-		//int bb = num_nodes_of_expr(exp2);
-		//int cc = 1; }
 			if (num_nodes_of_expr(exp1) != num_nodes_of_expr(exp2)) {   // exp1과 exp2의 원소의 수가 다르다면
 				return false;   // 0
 			}
@@ -284,19 +281,19 @@ bool unify_sub(nodeptr head1, nodeptr exp1, nodeptr head2, nodeptr exp2, substi_
 					return false;   // 0
 				}
 				
-
-				//*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
-				//////////////////////////
+				// Attach substitution elements in the list of temp_substi to the list of *substi;
 				if (temp_substi != NULL) {
 					if (*substi == NULL) {
-						*substi = temp_substi;  // Attach substitution elements in the list of temp_substi to the list of *substi;
+						*substi = temp_substi;
 					}
 					else {
 						curr->next = temp_substi;
 					}
-					curr = temp_substi;
+					while (temp_substi != NULL) {
+						curr = temp_substi;
+						temp_substi = temp_substi->next;
+					}
 				}
-				///////////////////////////
 				
 				p1 = p1->right;
 				p2 = p2->right;
@@ -326,7 +323,7 @@ bool unify(nodeptr exp1, nodeptr exp2, substi_nodeptr *substi)
 	return unify_sub(exp1, exp1, exp2, exp2, substi);
 }   // end of unify()
 
-bool apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm)
+bool apply_substitution_element_sub(nodeptr head, const char varString[], nodeptr nodeTerm)
 {
 	// head: 메인함수에서 준비된 expression 구조의 첫 노드에 대한 포인터.
 	// varString: 변수 노드의 스트링. 이 노드는 head 구조의 한 노드이다.
@@ -339,13 +336,12 @@ bool apply_substitution_element(nodeptr head, const char varString[], nodeptr no
 		if (get_kind_of_expr(head) == VAR_ATOM) {   // head->str is a variable
 			if (strcmp(head->str, varString) == 0) {    // 치환이 필요한 노드를 발견함 (head->str == VarString)
 				if (get_kind_of_expr(nodeTerm) & 0x02) {    // nodeTerm->str is an atom
-					strcpy_s(head->str, NODE_STR_SIZE, nodeTerm->str);  // 변수를 atom 으로 변경함 ( head->str = nodeTerm->str)
+					strcpy_s(head->str, NODE_STR_SIZE, nodeTerm->str);  // 변수를 atom 으로 변경함 (head->str = nodeTerm->str)
 				}
 				else if (nodeTerm->str[0] == '(') { // (nodeTerm->str = "(")
 					head->str[0] = '\0';            // (head->str = "\0")
 					head->down = nodeTerm;          // 변수를 리스트로 변경함
 				}
-				else;
 			}
 		}
 		
@@ -363,6 +359,13 @@ bool apply_substitution_element(nodeptr head, const char varString[], nodeptr no
 	} while (true);
 	
 	return true;    // 1
+}   // end of apply_substitution_element_sub()
+
+bool apply_substitution_element(nodeptr head, const char varString[], nodeptr nodeTerm)
+{
+	char varStrRepo[NODE_STR_SIZE];
+	strcpy_s(varStrRepo, NODE_STR_SIZE, varString);
+	return apply_substitution_element_sub(head, varStrRepo, nodeTerm);
 }   // end of apply_substitution_element()
 
 bool read_token(char *str_dst, const char *str_exp)
